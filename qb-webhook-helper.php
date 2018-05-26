@@ -1,7 +1,5 @@
 <?php 
 
-//realm=&uname=&pword=&db=&apptoken=&thours=&rid=&fname=&lname&
-
 $realm = $_POST["realm"];
 $uname = $_POST["uname"];
 $pword = $_POST["pword"];
@@ -13,51 +11,41 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST["record_id"]) ) {
 
 	$record_id = $_POST["record_id"];
 
-	$data_list = array(
-		'pswd' => "V6vZoZuMDE8ti5yU",
-		'stamp' => date("Y-m-d H:i:s"),
-
-		// 'fname' => "Test1",
-		// 'lname' => "Test2",
-		// 'email' => "t@test3.com",
-		// 'addr' => "2006 Lonely Oak Drive",
-		// 'addr2' => "",
-		// 'city' => "Mobile",
-		// 'state' => "AL",
-		// 'zip' => "36602",
-		// 'dob' => "1990-12-16",
-		// 'gender' => "M",
-		// 'landline' => "3334464556",	
-
-		'fname' => $_GET["fname"],
-		'lname' => $_GET["lname"],
-		'email' => $_GET["email"],
-		'addr' => $_GET["addr"],
-		'addr2' => $_GET["addr2"],
-		'city' => $_GET["city"],
-		'state' => $_GET["state"],
-		'zip' => $_GET["zip"],
-		'dob' => date("Y-m-d", strtotime($_GET["dob"])),
-		'gender' => $_GET["gender"],
-		'landline' => $_GET["landline"],
-		'cellphone' => $_GET["cellphone"],
-	);
+	$data_list = array();
+	foreach ($_POST as $key => $value) {
+	    if (strpos($key, "qb_send_") === 0) {
+	         $data_list[str_replace("qb_send_", "", $key)] = $value;
+	    }
+	}	
 
 	$data_string = http_build_query($data_list);
 	
-	$url = "https://www.qmleads.com/live/q_an_incomingcalls/livefeed.php";
+	$url = $_POST["set_url"];
 
 	$curl = curl_init();
-	curl_setopt_array($curl, array(
-	    CURLOPT_RETURNTRANSFER => 1,
-	    CURLOPT_URL => $url,
-	    CURLOPT_USERAGENT => 'API Request',
-	    CURLOPT_HTTPHEADER => array(
-	    	//'Content-Type: application/xml'
-	    ),
-	    CURLOPT_POST => 1,
-	    CURLOPT_POSTFIELDS => $data_string
-	));
+	if ($_POST["request_method"] =="get") {
+
+		curl_setopt_array($curl, array(
+		    CURLOPT_RETURNTRANSFER => 1,
+		    CURLOPT_URL => $url."?".$data_string,
+		    CURLOPT_USERAGENT => 'API Request'
+		));
+
+	} elseif ($_POST["request_method"] =="post") {
+
+		curl_setopt_array($curl, array(
+		    CURLOPT_RETURNTRANSFER => 1,
+		    CURLOPT_URL => $url,
+		    CURLOPT_USERAGENT => 'API Request',
+		    CURLOPT_HTTPHEADER => array(
+		    	//'Content-Type: application/xml'
+		    ),
+		    CURLOPT_POST => 1,
+		    CURLOPT_POSTFIELDS => $data_string
+		));
+
+	}
+	
 	$resp = curl_exec($curl);
 	curl_close($curl);
 
@@ -91,11 +79,19 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST["record_id"]) ) {
 	$xml = new SimpleXMLElement($resp2);
 	$update_id = $xml->update_id;
 
+	$field_options = array(
+		"raw_response" =>$resp,
+	);
+
 	$post_data = array(
 		"rid" =>$record_id,
-		"_fid_16" =>$resp,
 		"update_id" =>$update_id,
 	);
+	foreach ($_POST as $key => $value) {
+	    if (strpos($key, "_fid_") === 0 || strpos($key, "_fnm_") === 0 ) {
+	         $post_data[$key] = $field_options[$value];
+	    }
+	}	
 
 	$post_string = http_build_query($post_data);
 
